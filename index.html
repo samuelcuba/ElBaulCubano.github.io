@@ -4,11 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>El Baul Cubano - Tu Tienda Online</title>
-    <!-- Tailwind CSS para diseño moderno sin complicaciones -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .card-hover:hover { transform: translateY(-5px); transition: 0.3s; }
+        
+        /* Estilos para el mensaje flotante (Toast) */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -17,8 +41,9 @@
     <header class="bg-red-600 text-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <h1 class="text-2xl font-bold">🇨🇺 El Baul Cubano</h1>
-            <div class="bg-white text-red-600 font-bold py-2 px-4 rounded-full text-sm">
-                Carrito: <span id="cart-count">0</span>
+            <div class="bg-white text-red-600 font-bold py-2 px-4 rounded-full text-sm flex items-center gap-2">
+                <span>🛒 Carrito: <span id="cart-count">0</span></span>
+                <button onclick="vaciarCarrito()" class="text-red-400 hover:text-red-700 font-bold text-lg leading-none ml-1" title="Vaciar carrito">&times;</button>
             </div>
         </div>
     </header>
@@ -29,9 +54,14 @@
         <p class="text-lg">Pagos en efectivo (CUP) 🇨🇺 | Entrega a domicilio o punto de encuentro</p>
     </section>
 
+    <!-- Filtros de Categorías -->
+    <div class="container mx-auto px-4 py-6 flex flex-wrap justify-center gap-3" id="categorias-container">
+        <!-- Las categorías se cargan aquí -->
+    </div>
+
     <!-- Productos -->
-    <main class="container mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="productos-container">
-        <!-- Los productos se cargan aquí automáticamente por JavaScript -->
+    <main class="container mx-auto px-4 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="productos-container">
+        <!-- Los productos se cargan aquí -->
     </main>
 
     <!-- Botón Flotante de WhatsApp -->
@@ -41,58 +71,140 @@
         </svg>
     </a>
 
+    <!-- Mensaje Flotante (Toast) -->
+    <div id="toast">Producto agregado al carrito 🛒</div>
+
     <script>
-        // AQUÍ ESTÁ TU INVENTARIO (Precio de costo y precio de venta)
-        // El cliente NUNCA ve el "costo", solo tú.
+        // INVENTARIO CON CATEGORÍAS
         const inventario = [
-            { id: 1, nombre: "Jabón de Bañar", costo: 150, venta: 250, img: "https://images.unsplash.com/photo-1607006344380-b6775a0824a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" },
-            { id: 2, nombre: "Detergente 1kg", costo: 300, venta: 450, img: "https://images.unsplash.com/photo-1583947215250-56c71c9e26ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" },
-            { id: 3, nombre: "Pollo Entero", costo: 400, venta: 550, img: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" },
-            { id: 4, nombre: "Cerveza Nacional", costo: 120, venta: 200, img: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" }
+            { id: 1, nombre: "Jabón de Bañar", venta: 250, categoria: "Limpieza", img: "https://images.unsplash.com/photo-1607006344380-b6775a0824a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" },
+            { id: 2, nombre: "Detergente 1kg", venta: 450, categoria: "Limpieza", img: "https://images.unsplash.com/photo-1583947215250-56c71c9e26ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" },
+            { id: 3, nombre: "Pollo Entero", venta: 550, categoria: "Carnicería", img: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" },
+            { id: 4, nombre: "Cerveza Nacional", venta: 200, categoria: "Bebidas", img: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" },
+            { id: 5, nombre: "Arroz 1kg", venta: 180, categoria: "Abarrotes", img: "https://images.unsplash.com/photo-1586201375761-83865001e31c?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" }
         ];
 
         let carrito = [];
+        let categoriaActual = "Todos";
 
-        // Renderizar productos
-        const container = document.getElementById('productos-container');
-        inventario.forEach(producto => {
-            container.innerHTML += `
-                <div class="bg-white rounded-xl shadow-md overflow-hidden card-hover">
-                    <img src="${producto.img}" alt="${producto.nombre}" class="w-full h-40 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold text-lg">${producto.nombre}</h3>
-                        <p class="text-2xl font-extrabold text-red-600 my-2">${producto.venta} CUP</p>
-                        <button onclick="agregarCarrito(${producto.id})" class="w-full bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition">
-                            Agregar al Carrito
-                        </button>
+        // --- 1. SISTEMA DE CATEGORÍAS ---
+        function renderizarCategorias() {
+            const categorias = ["Todos", ...new Set(inventario.map(p => p.categoria))];
+            const catContainer = document.getElementById('categorias-container');
+            catContainer.innerHTML = '';
+            
+            categorias.forEach(cat => {
+                catContainer.innerHTML += `
+                    <button onclick="filtrarCategoria('${cat}')" class="px-4 py-2 rounded-full font-semibold transition ${cat === categoriaActual ? 'bg-red-600 text-white' : 'bg-white text-red-600 border border-red-600 hover:bg-red-100'}">
+                        ${cat}
+                    </button>
+                `;
+            });
+        }
+
+        function filtrarCategoria(cat) {
+            categoriaActual = cat;
+            renderizarCategorias();
+            renderizarProductos();
+        }
+
+        // --- 2. RENDERIZADO DE PRODUCTOS ---
+        function renderizarProductos() {
+            const container = document.getElementById('productos-container');
+            container.innerHTML = '';
+            const productosAMostrar = categoriaActual === "Todos" ? inventario : inventario.filter(p => p.categoria === categoriaActual);
+
+            productosAMostrar.forEach(producto => {
+                container.innerHTML += `
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden card-hover">
+                        <img src="${producto.img}" alt="${producto.nombre}" class="w-full h-40 object-cover">
+                        <div class="p-4">
+                            <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${producto.categoria}</span>
+                            <h3 class="font-bold text-lg mt-2">${producto.nombre}</h3>
+                            <p class="text-2xl font-extrabold text-red-600 my-2">${producto.venta} CUP</p>
+                            <button onclick="agregarCarrito(${producto.id})" class="w-full bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition">
+                                Agregar al Carrito
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
-        });
+                `;
+            });
+        }
 
+        // --- 3. LÓGICA DEL CARRITO Y LOCALSTORAGE ---
         function agregarCarrito(id) {
             const producto = inventario.find(p => p.id === id);
-            carrito.push(producto);
-            document.getElementById('cart-count').innerText = carrito.length;
-            actualizarWhatsApp();
-            alert(`${producto.nombre} agregado al carrito!`);
+            const existe = carrito.find(item => item.id === id);
+            
+            if (existe) {
+                existe.cantidad += 1;
+            } else {
+                carrito.push({ ...producto, cantidad: 1 });
+            }
+
+            actualizarUI();
+            mostrarToast(`${producto.nombre} agregado!`);
         }
 
-        function actualizarWhatsApp() {
-            // CAMBIA EL NÚMERO POR TU NÚMERO DE WHATSAPP (incluye el 53 de Cuba)
-            let telefono = "5312345678"; 
-            let mensaje = "¡Hola! Quiero hacer el siguiente pedido en El Baul Cubano:%0A%0A";
+        function vaciarCarrito() {
+            if (carrito.length === 0) return;
+            carrito = [];
+            localStorage.removeItem('carritoElBaul'); // Limpiar memoria
+            actualizarUI();
+            mostrarToast('Carrito vaciado 🗑️');
+        }
+
+        function actualizarUI() {
+            // Actualizar contador
+            const totalItems = carrito.reduce((acc, item) => acc + item.cantidad, 0);
+            document.getElementById('cart-count').innerText = totalItems;
+
+            // Guardar en localStorage
+            localStorage.setItem('carritoElBaul', JSON.stringify(carrito));
+
+            // Actualizar WhatsApp
+            let telefono = "5352164100"; // Tu número
+            let btnWhatsApp = document.getElementById('whatsapp-btn');
+
+            if (carrito.length === 0) {
+                btnWhatsApp.href = "#";
+                return;
+            }
+
+            let mensaje = "¡Hola! 🛒 Quiero hacer el siguiente pedido en El Baul Cubano:%0A%0A";
             let total = 0;
             
-            carrito.forEach((item, index) => {
-                mensaje += `${index + 1}. ${item.nombre} - ${item.venta} CUP%0A`;
-                total += item.venta;
+            carrito.forEach((item) => {
+                const subtotal = item.venta * item.cantidad;
+                mensaje += `*${item.cantidad}x* ${item.nombre} - ${subtotal} CUP%0A`;
+                total += subtotal;
             });
             
-            mensaje += `%0A*Total a pagar en efectivo:* ${total} CUP%0A%0A¿Coordinamos la entrega?`;
-            
-            document.getElementById('whatsapp-btn').href = `https://wa.me/${telefono}?text=${mensaje}`;
+            mensaje += `%0A*Total a pagar en efectivo:* ${total} CUP%0A%0A¿Coordinamos la entrega? 🚚`;
+            btnWhatsApp.href = `https://wa.me/${telefono}?text=${mensaje}`;
         }
+
+        // --- MENSAJE FLOTANTE ---
+        function mostrarToast(mensaje) {
+            const toast = document.getElementById("toast");
+            toast.innerText = mensaje;
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // --- INICIALIZACIÓN AL CARGAR LA PÁGINA ---
+        window.onload = function() {
+            // Recuperar carrito guardado en el navegador
+            const carritoGuardado = localStorage.getItem('carritoElBaul');
+            if (carritoGuardado) {
+                carrito = JSON.parse(carritoGuardado);
+            }
+            
+            // Dibujar todo en la pantalla
+            renderizarCategorias();
+            renderizarProductos();
+            actualizarUI();
+        };
     </script>
 </body>
 </html>
